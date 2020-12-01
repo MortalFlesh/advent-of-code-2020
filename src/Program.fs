@@ -15,7 +15,9 @@ let main argv =
             Description = "Runs an advent-of-code application."
             Help = None
             Arguments = Command.AdventOfCode.args
-            Options = []
+            Options = [
+                Option.noValue "second-puzzle" (Some "s") "Whether you are expecting a result of the second puzzle."
+            ]
             Initialize = None
             Interact = None
             Execute = Command.AdventOfCode.execute
