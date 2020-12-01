@@ -132,3 +132,19 @@ module Console =
 
             do! runForever
         }
+
+    [<RequireQualifiedAccess>]
+    module Assert =
+        let eq expected actual =
+            if expected = actual then Ok ()
+            else Error <| sprintf "Value %A is not same as expected %A." actual expected
+
+    [<RequireQualifiedAccess>]
+    module ExitCode =
+        let ofResult output = function
+            | Ok message ->
+                output.Success message
+                ExitCode.Success
+            | Error e ->
+                output.Error e
+                ExitCode.Error

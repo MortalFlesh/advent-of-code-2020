@@ -12,10 +12,12 @@ let main argv =
         version AssemblyVersionInformation.AssemblyVersion
 
         command "advent:run" {
-            Description = "Runs a advent-of-code application."
+            Description = "Runs an advent-of-code application."
             Help = None
-            Arguments = []
-            Options = []
+            Arguments = Command.AdventOfCode.args
+            Options = [
+                Option.noValue "second-puzzle" (Some "s") "Whether you are expecting a result of the second puzzle."
+            ]
             Initialize = None
             Interact = None
             Execute = Command.AdventOfCode.execute
