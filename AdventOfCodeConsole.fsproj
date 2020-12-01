@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <PackageId>MF.AdventOfCodeConsole</PackageId>
+    <Description>A console app solving an Advent of Code 2020</Description>
+    <Version>0.0.0</Version>
+    <PackageProjectUrl>https://github.com/MortalFlesh/advent-of-code-2020</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MortalFlesh/advent-of-code-2020.git</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageTags>advent-of-code;console-application</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="src/Utils/Utils.fsproj" />
+    <ProjectReference Include="src/ErrorHandling/ErrorHandling.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="src/Console.fs" />
+
+    <!-- commands -->
+    <Compile Include="src/Command/Common.fs" />
+    <Compile Include="src/Command/AdventOfCode.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="src/Program.fs" />
+  </ItemGroup>
+
+  <Import Project=".paket\Paket.Restore.targets" />
+</Project>
