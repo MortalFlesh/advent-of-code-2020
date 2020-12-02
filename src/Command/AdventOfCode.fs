@@ -58,6 +58,31 @@ module AdventOfCode =
             )
             |> List.length
 
+        /// Each policy actually describes two positions in the password,
+        /// where 1 means the first character, 2 means the second character, and so on.
+        /// (Be careful; Toboggan Corporate Policies have no concept of "index zero"!)
+        /// Exactly one of these positions must contain the given letter.
+        /// Other occurrences of the letter are irrelevant for the purposes of policy enforcement.
+        let countValidPasswordBySecondPolicy passwords =
+            passwords
+            |> List.filter (function
+                | Regex @"^(\d+)-(\d+) (\w): (.+)$" [ first; second; letter; password ] ->
+                    maybe {
+                        let first = (int first) - 1
+                        let second = (int second) - 1
+                        let! firstLetter = password |> Seq.tryItem first
+                        let! secondLetter = password |> Seq.tryItem second
+                        let letter = letter.[0]
+
+                        return
+                            firstLetter <> secondLetter
+                            && (firstLetter = letter || secondLetter = letter)
+                    }
+                    |> Option.defaultValue false
+                | _ -> false
+            )
+            |> List.length
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -87,10 +112,10 @@ module AdventOfCode =
             file
             |> FileSystem.readLines
 
-        let secondPuzzle =
+        let firstPuzzle =
             match input with
-            | Input.HasOption "second-puzzle" _ -> true
-            | _ -> false
+            | Input.HasOption "second-puzzle" _ -> false
+            | _ -> true
 
         let handleResult dayResult = result {
             match expected with
@@ -104,17 +129,17 @@ module AdventOfCode =
         match day with
         | 1 ->
             let! day1result =
-                if secondPuzzle
-                then inputLines |> Day1.tryFind3MatchingNumbers
-                else inputLines |> Day1.tryFind2MatchingNumbers
+                if firstPuzzle
+                then inputLines |> Day1.tryFind2MatchingNumbers
+                else inputLines |> Day1.tryFind3MatchingNumbers
                 |> Result.ofOption "There are no numbers in the input which matches a criteria."
 
             return! handleResult day1result
         | 2 ->
             let day2result =
-                if secondPuzzle
-                then failwith "not implemented yet"
-                else inputLines |> Day2.countValidPasswords
+                if firstPuzzle
+                then inputLines |> Day2.countValidPasswords
+                else inputLines |> Day2.countValidPasswordBySecondPolicy
 
             return! handleResult day2result
         | day ->
