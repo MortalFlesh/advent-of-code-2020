@@ -11,10 +11,12 @@ module AdventOfCode =
 
     [<RequireQualifiedAccess>]
     module private Day1 =
-
         /// Specifically, they need you to find the two entries that sum to 2020 and then multiply those two numbers together.
         let tryFind2MatchingNumbers expanses =
+            let expanses = expanses |> List.map int
+
             expanses
+            |> List.map int
             |> List.tryPick (fun a ->
                 expanses
                 |> List.tryFind (fun b -> a + b = 2020)
@@ -23,7 +25,9 @@ module AdventOfCode =
             |> Option.map (fun (a, b) -> a * b)
 
         /// Find three numbers in your expense report that meet the same criteria
-        let tryFind3MatchingNumbers expanses =
+        let tryFind3MatchingNumbers (expanses: string list) =
+            let expanses = expanses |> List.map int
+
             expanses
             |> List.tryPick (fun a ->
                 expanses
@@ -35,9 +39,53 @@ module AdventOfCode =
             )
             |> Option.map (fun (a, b, c) -> a * b * c)
 
+    [<RequireQualifiedAccess>]
+    module Day2 =
+        /// Each line gives the password policy and then the password.
+        /// The password policy indicates the lowest and highest number of times a given letter must appear for the password to be valid.
+        /// For example, 1-3 a means that the password must contain a at least 1 time and at most 3 times.
+        let countValidPasswords passwords =
+            passwords
+            |> List.filter (function
+                | Regex @"^(\d+)-(\d+) (\w): (.+)$" [ min; max; letter; password ] ->
+                    let count =
+                        password
+                        |> Seq.filter ((=) letter.[0])
+                        |> Seq.length
+
+                    count >= (int min) && count <= (int max)
+                | _ -> false
+            )
+            |> List.length
+
+        /// Each policy actually describes two positions in the password,
+        /// where 1 means the first character, 2 means the second character, and so on.
+        /// (Be careful; Toboggan Corporate Policies have no concept of "index zero"!)
+        /// Exactly one of these positions must contain the given letter.
+        /// Other occurrences of the letter are irrelevant for the purposes of policy enforcement.
+        let countValidPasswordBySecondPolicy passwords =
+            passwords
+            |> List.filter (function
+                | Regex @"^(\d+)-(\d+) (\w): (.+)$" [ first; second; letter; password ] ->
+                    maybe {
+                        let first = (int first) - 1
+                        let second = (int second) - 1
+                        let! firstLetter = password |> Seq.tryItem first
+                        let! secondLetter = password |> Seq.tryItem second
+                        let letter = letter.[0]
+
+                        return
+                            firstLetter <> secondLetter
+                            && (firstLetter = letter || secondLetter = letter)
+                    }
+                    |> Option.defaultValue false
+                | _ -> false
+            )
+            |> List.length
+
     let args = [
         Argument.required "day" "A number of a day you are running"
-        Argument.required "expanses" "Expanse report"
+        Argument.required "input" "Input data file path"
         Argument.optional "expectedResult" "Expected result" None
     ]
 
@@ -55,35 +103,45 @@ module AdventOfCode =
 
         let day = input |> Input.getArgumentValueAsInt "day" |> Option.defaultValue 1
 
-        match day with
-        | 1 ->
-            let! expanses =
-                input
-                |> Input.getArgumentValueAsString "expanses"
-                |> Result.ofOption "Missing expanses file"
+        let! file =
+            input
+            |> Input.getArgumentValueAsString "input"
+            |> Result.ofOption "Missing input file"
 
-            let expanses =
-                expanses
-                |> FileSystem.readLines
-                |> List.map int
+        let inputLines =
+            file
+            |> FileSystem.readLines
 
-            let day1result =
-                match input with
-                | Input.HasOption "second-puzzle" _ -> expanses |> Day1.tryFind3MatchingNumbers
-                | _ -> expanses |> Day1.tryFind2MatchingNumbers
+        let firstPuzzle =
+            match input with
+            | Input.HasOption "second-puzzle" _ -> false
+            | _ -> true
 
-            let! day1result =
-                day1result
-                |> Result.ofOption "There are no numbers in the input which matches a criteria."
-
+        let handleResult dayResult = result {
             match expected with
             | Some expected ->
-                do! day1result |> Assert.eq (int expected)
-
+                do! dayResult |> Assert.eq (int expected)
                 return "Done"
             | _ ->
-                return sprintf "Result value is %A" day1result
+                return sprintf "Result value is %A" dayResult
+        }
 
+        match day with
+        | 1 ->
+            let! day1result =
+                if firstPuzzle
+                then inputLines |> Day1.tryFind2MatchingNumbers
+                else inputLines |> Day1.tryFind3MatchingNumbers
+                |> Result.ofOption "There are no numbers in the input which matches a criteria."
+
+            return! handleResult day1result
+        | 2 ->
+            let day2result =
+                if firstPuzzle
+                then inputLines |> Day2.countValidPasswords
+                else inputLines |> Day2.countValidPasswordBySecondPolicy
+
+            return! handleResult day2result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
