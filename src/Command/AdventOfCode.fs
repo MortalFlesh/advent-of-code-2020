@@ -104,8 +104,48 @@ module AdventOfCode =
 
             input |> count (0, 0)
 
-        let second input =
-            0
+        /// Determine the number of trees you would encounter if, for each of the following slopes, you start at the top-left corner and traverse the map all the way to the bottom:
+        /// Right 1, down 1.
+        /// Right 3, down 1. (This is the slope you already checked.)
+        /// Right 5, down 1.
+        /// Right 7, down 1.
+        /// Right 1, down 2.
+        /// In the above example, these slopes would find 2, 7, 3, 4, and 2 tree(s) respectively; multiplied together, these produce the answer 336.
+        let countTreesInPath input =
+            let countTreesInPathBy input =
+                let lines = input |> List.mapi (fun i v -> (i, v))
+
+                let value position (line: string) =
+                    // printfn "Check: %s at [%03d] | -> %A (%s)" line position line.[position] (if line.[position] = '#' then "tree" else "space")
+                    if line.[position] = '#' then 1 else 0
+
+                let rec count (right, down) (position, acc) = function
+                    | [] -> acc
+                    | (lineNumber, line: string) :: rest ->
+                        rest |> count (right, down) (
+                            (if lineNumber % down = 0
+                                then (position + right) % line.Length
+                                else position),
+
+                            (if lineNumber % down = 0
+                                then acc + (line |> value position)
+                                else acc)
+                        )
+
+                fun (right, down) -> lines |> count (right, down) (0, 0)
+
+            [
+                1, 1
+                3, 1
+                5, 1
+                7, 1
+                1, 2
+            ]
+            |> List.fold (fun (acc: int64) (right, down) ->
+                let c = countTreesInPathBy input (right, down)
+                // printfn " - For %d, %d -> %d trees" right down c
+                acc * (int64 c)
+            ) (int64 1)
 
     let args = [
         Argument.required "day" "A number of a day you are running"
@@ -141,10 +181,10 @@ module AdventOfCode =
             | Input.HasOption "second-puzzle" _ -> false
             | _ -> true
 
-        let handleResult dayResult = result {
+        let handleResult f dayResult = result {
             match expected with
             | Some expected ->
-                do! dayResult |> Assert.eq (int expected)
+                do! dayResult |> Assert.eq (f expected)
                 return "Done"
             | _ ->
                 return sprintf "Result value is %A" dayResult
@@ -158,21 +198,21 @@ module AdventOfCode =
                 else inputLines |> Day1.tryFind3MatchingNumbers
                 |> Result.ofOption "There are no numbers in the input which matches a criteria."
 
-            return! handleResult day1result
+            return! handleResult int day1result
         | 2 ->
             let day2result =
                 if firstPuzzle
                 then inputLines |> Day2.countValidPasswords
                 else inputLines |> Day2.countValidPasswordBySecondPolicy
 
-            return! handleResult day2result
+            return! handleResult int day2result
         | 3 ->
             let day3result =
                 if firstPuzzle
-                then inputLines |> Day3.countTreesInPathByR3D1
-                else inputLines |> Day3.second
+                then inputLines |> Day3.countTreesInPathByR3D1 |> int64
+                else inputLines |> Day3.countTreesInPath |> int64
 
-            return! handleResult day3result
+            return! handleResult int64 day3result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
