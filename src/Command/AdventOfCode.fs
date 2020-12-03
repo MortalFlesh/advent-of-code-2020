@@ -83,6 +83,30 @@ module AdventOfCode =
             )
             |> List.length
 
+    [<RequireQualifiedAccess>]
+    module Day3 =
+        /// You start on the open square (.) in the top-left corner and need to reach the bottom (below the bottom-most row on your map).
+        /// The toboggan can only follow a few specific slopes (you opted for a cheaper model that prefers rational numbers); start by counting all the trees you would encounter for the slope right 3, down 1:
+        /// From your starting position at the top-left, check the position that is right 3 and down 1.
+        /// Then, check the position that is right 3 and down 1 from there, and so on until you go past the bottom of the map.
+        let countTreesInPathByR3D1 input =
+            let value position (line: string) =
+                //printfn "Check: %s at [%03d] | -> %A (%s)" line position line.[position] (if line.[position] = '#' then "tree" else "space")
+                if line.[position] = '#' then 1 else 0
+
+            let rec count (position, acc) = function
+                | [] -> acc
+                | (line: string) :: rest ->
+                    rest |> count (
+                        (position + 3) % line.Length,
+                        acc + (line |> value position)
+                    )
+
+            input |> count (0, 0)
+
+        let second input =
+            0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -142,6 +166,13 @@ module AdventOfCode =
                 else inputLines |> Day2.countValidPasswordBySecondPolicy
 
             return! handleResult day2result
+        | 3 ->
+            let day3result =
+                if firstPuzzle
+                then inputLines |> Day3.countTreesInPathByR3D1
+                else inputLines |> Day3.second
+
+            return! handleResult day3result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
