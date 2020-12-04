@@ -147,6 +147,88 @@ module AdventOfCode =
                 acc * (int64 c)
             ) (int64 1)
 
+    [<RequireQualifiedAccess>]
+    module Day4 =
+        type private Passport = {
+            /// byr
+            BirthYear: string option
+            /// iyr
+            IssueYear: string option
+            /// eyr
+            ExpirationYear: string option
+            /// hgt
+            Height: string option
+            /// hcl
+            HairColor: string option
+            /// ecl
+            EyeColor: string option
+            /// pid
+            PassportID: string option
+            /// cid
+            CountryID: string option
+        }
+
+        let private isValid: Passport -> bool = function
+            | { BirthYear = Some byr; IssueYear = Some iyr; ExpirationYear = Some eyr; Height = Some hgt; HairColor = Some hcl; EyeColor = Some ecl; PassportID = Some pid; CountryID = _ } -> true
+            | _ -> false
+
+        let private empty = {
+            BirthYear = None
+            IssueYear = None
+            ExpirationYear = None
+            Height = None
+            HairColor = None
+            EyeColor = None
+            PassportID = None
+            CountryID = None
+        }
+
+        let private parse = function
+            | null | "" -> failwith "[Logic] Empty line can not be parsed."
+            | line ->
+                let rec parsePass passport = function
+                    | [] -> passport
+                    | ("byr", value) :: values -> values |> parsePass { passport with BirthYear = Some value }
+                    | ("iyr", value) :: values -> values |> parsePass { passport with IssueYear = Some value }
+                    | ("eyr", value) :: values -> values |> parsePass { passport with ExpirationYear = Some value }
+                    | ("hgt", value) :: values -> values |> parsePass { passport with Height = Some value }
+                    | ("hcl", value) :: values -> values |> parsePass { passport with HairColor = Some value }
+                    | ("ecl", value) :: values -> values |> parsePass { passport with EyeColor = Some value }
+                    | ("pid", value) :: values -> values |> parsePass { passport with PassportID = Some value }
+                    | ("cid", value) :: values -> values |> parsePass { passport with CountryID = Some value }
+                    | (k, v) :: _ -> failwithf "Invalid key %s with value %s" k v
+
+                line.Split ' '
+                |> Seq.choose (fun part ->
+                    match part.Split (':', 2) with
+                    | [| k; v  |] -> Some (k, v)
+                    | _ -> None
+                )
+                |> Seq.toList
+                |> parsePass empty
+
+        let private mergeTo passport current =
+            {
+                BirthYear = passport.BirthYear |> Option.orElse current.BirthYear
+                IssueYear = passport.IssueYear |> Option.orElse current.IssueYear
+                ExpirationYear = passport.ExpirationYear |> Option.orElse current.ExpirationYear
+                Height = passport.Height |> Option.orElse current.Height
+                HairColor = passport.HairColor |> Option.orElse current.HairColor
+                EyeColor = passport.EyeColor |> Option.orElse current.EyeColor
+                PassportID = passport.PassportID |> Option.orElse current.PassportID
+                CountryID = passport.CountryID |> Option.orElse current.CountryID
+            }
+
+        let validatePassports input =
+            let rec countValid (p, acc) = function
+                | [] -> p :: acc |> List.filter isValid |> List.length
+                | "" :: lines -> lines |> countValid (empty, p :: acc)
+                | line :: lines -> lines |> countValid (line |> parse |> mergeTo p, acc)
+
+            input |> countValid (empty, [])
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -210,9 +292,16 @@ module AdventOfCode =
             let day3result =
                 if firstPuzzle
                 then inputLines |> Day3.countTreesInPathByR3D1 |> int64
-                else inputLines |> Day3.countTreesInPath |> int64
+                else inputLines |> Day3.countTreesInPath
 
             return! handleResult int64 day3result
+        | 4 ->
+            let day4result =
+                if firstPuzzle
+                then inputLines |> Day4.validatePassports
+                else inputLines |> Day4.second
+
+            return! handleResult int day4result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
