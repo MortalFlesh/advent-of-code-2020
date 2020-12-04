@@ -227,7 +227,47 @@ module AdventOfCode =
 
             input |> countValid (empty, [])
 
-        let second input = 0
+        let private parseStrict = function
+            | null | "" -> failwith "[Logic] Empty line can not be parsed."
+            | line ->
+                let btw (min, max) (value: string) =
+                    try int value >= min && int value <= max
+                    with _ -> false
+
+                let rec parsePass passport = function
+                    | [] -> Some passport
+                    | ("byr", Regex @"^(\d{4})$" [ value ]) :: values when value |> btw (1920, 2002) -> values |> parsePass { passport with BirthYear = Some value }
+                    | ("iyr", Regex @"^(\d{4})$" [ value ]) :: values when value |> btw (2010, 2020) -> values |> parsePass { passport with IssueYear = Some value }
+                    | ("eyr", Regex @"^(\d{4})$" [ value ]) :: values when value |> btw (2020, 2030) -> values |> parsePass { passport with ExpirationYear = Some value }
+                    | ("hgt", Regex @"^(\d+)(cm|in)$" [ value; metric ]) :: values when (metric = "cm" && value |> btw (150, 193)) || (metric = "in" && value |> btw (59, 76)) -> values |> parsePass { passport with Height = Some value }
+                    | ("hcl", Regex @"^(#[a-f\d]{6})$" [ value ]) :: values -> values |> parsePass { passport with HairColor = Some value }
+                    | ("ecl", value) :: values when [ "amb"; "blu"; "brn"; "gry"; "grn"; "hzl"; "oth" ] |> List.exists ((=) value) -> values |> parsePass { passport with EyeColor = Some value }
+                    | ("pid", Regex @"^(\d{9})$" [ value ]) :: values -> values |> parsePass { passport with PassportID = Some value }
+                    | ("cid", value) :: values -> values |> parsePass { passport with CountryID = Some value }
+                    | (k, v) :: _ ->
+                        // printfn "Invalid %s with %s" k v
+                        None
+
+                line.Split ' '
+                |> Seq.choose (fun part ->
+                    match part.Split (':', 2) with
+                    | [| k; v  |] -> Some (k, v)
+                    | _ -> None
+                )
+                |> Seq.toList
+                |> parsePass empty
+
+        let validatePassportsStrictly input =
+            let rec countValid (p, acc) = function
+                | [] -> p :: acc |> List.filter isValid |> List.length
+                | "" :: lines -> lines |> countValid (empty, p :: acc)
+                | line :: lines ->
+                    lines |> countValid (
+                        line |> parseStrict |> Option.map (mergeTo p) |> Option.defaultValue p,
+                        acc
+                    )
+
+            input |> countValid (empty, [])
 
     let args = [
         Argument.required "day" "A number of a day you are running"
@@ -299,7 +339,7 @@ module AdventOfCode =
             let day4result =
                 if firstPuzzle
                 then inputLines |> Day4.validatePassports
-                else inputLines |> Day4.second
+                else inputLines |> Day4.validatePassportsStrictly
 
             return! handleResult int day4result
         | day ->
