@@ -278,6 +278,7 @@ module AdventOfCode =
         }
 
         let private seatId { Id = id } = id
+        let private newSeatId row column = row * 8 + column
 
         type private Range = {
             Min: int
@@ -322,16 +323,34 @@ module AdventOfCode =
             {
                 Row = row
                 Column = column
-                Id = row * 8 + column
+                Id = newSeatId row column
             }
 
         let findTheHighestSeatId input =
             input
-            |> List.map parseSeat
-            |> List.maxBy seatId
-            |> seatId
+            |> List.map (parseSeat >> seatId)
+            |> List.max
 
-        let second input = 0
+        let findMySeat input =
+            let occupiedSeatIds =
+                input
+                |> List.map (parseSeat >> seatId)
+
+            [
+                for row in 1..126 do    // rows minus very front/back
+                    for column in 1..6 do   // there must be a left and right seat around me, so I'm not at the side
+                        let id = newSeatId row column
+
+                        if occupiedSeatIds |> List.exists ((=) id) |> not
+                        then
+                            let leftSeat = newSeatId row (column - 1)
+                            let rightSeat = newSeatId row (column + 1)
+
+                            if occupiedSeatIds |> List.exists ((=) leftSeat) && occupiedSeatIds |> List.exists ((=) rightSeat) then
+                                yield id
+            ]
+            |> tee (List.length >> printfn "Found seats: %A")
+            |> List.head
 
     let args = [
         Argument.required "day" "A number of a day you are running"
@@ -410,7 +429,7 @@ module AdventOfCode =
             let day5result =
                 if firstPuzzle
                 then inputLines |> Day5.findTheHighestSeatId
-                else inputLines |> Day5.second
+                else inputLines |> Day5.findMySeat
 
             return! handleResult int day5result
         | day ->
