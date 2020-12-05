@@ -269,6 +269,89 @@ module AdventOfCode =
 
             input |> countValid (empty, [])
 
+    [<RequireQualifiedAccess>]
+    module Day5 =
+        type private Seat = {
+            Row: int
+            Column: int
+            Id: int
+        }
+
+        let private seatId { Id = id } = id
+        let private newSeatId row column = row * 8 + column
+
+        type private Range = {
+            Min: int
+            Max: int
+        }
+
+        let private parseSeat (value: string) =
+            let rowValue = value.Substring(0, 7)
+            let colValue = value.Substring(7, 3)
+
+            // printfn "%s: %A[%d] | %A[%d]" value rowValue rowValue.Length colValue colValue.Length
+
+            let half { Min = min; Max = max } =
+                (min + max) / 2
+
+            let rec parse (lower, upper) acc = function
+                | [] -> failwithf "Empty input given"
+
+                | [ l ] when l = lower -> acc.Min
+                | [ u ] when u = upper -> acc.Max
+
+                | l :: rest when l = lower ->
+                    let acc = { acc with Max = acc |> half }
+                    // printfn "%A -> (Min: %A; Max: %A)" lower acc.Min acc.Max
+                    rest |> parse (lower, upper) acc
+
+                | u :: rest when u = upper ->
+                    let acc = { acc with Min = (acc |> half) + 1 }
+                    // printfn "%A -> (Min: %A; Max: %A)" upper acc.Min acc.Max
+                    rest |> parse (lower, upper) acc
+
+                | invalid :: _ -> failwithf "Invalid input %A" invalid
+
+            let rec parseRow = parse ('F', 'B') { Min = 0; Max = 127 }
+            let rec parseColumn = parse ('L', 'R') { Min = 0; Max = 7 }
+
+            let row = rowValue |> Seq.toList |> parseRow
+            let column = colValue |> Seq.toList |> parseColumn
+
+            // printfn "Row: %A | Column: %A" row column
+
+            {
+                Row = row
+                Column = column
+                Id = newSeatId row column
+            }
+
+        let findTheHighestSeatId input =
+            input
+            |> List.map (parseSeat >> seatId)
+            |> List.max
+
+        let findMySeat input =
+            let occupiedSeatIds =
+                input
+                |> List.map (parseSeat >> seatId)
+
+            [
+                for row in 1..126 do    // rows minus very front/back
+                    for column in 1..6 do   // there must be a left and right seat around me, so I'm not at the side
+                        let id = newSeatId row column
+
+                        if occupiedSeatIds |> List.exists ((=) id) |> not
+                        then
+                            let leftSeat = newSeatId row (column - 1)
+                            let rightSeat = newSeatId row (column + 1)
+
+                            if occupiedSeatIds |> List.exists ((=) leftSeat) && occupiedSeatIds |> List.exists ((=) rightSeat) then
+                                yield id
+            ]
+            |> tee (List.length >> printfn "Found seats: %A")
+            |> List.head
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -342,6 +425,13 @@ module AdventOfCode =
                 else inputLines |> Day4.validatePassportsStrictly
 
             return! handleResult int day4result
+        | 5 ->
+            let day5result =
+                if firstPuzzle
+                then inputLines |> Day5.findTheHighestSeatId
+                else inputLines |> Day5.findMySeat
+
+            return! handleResult int day5result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
