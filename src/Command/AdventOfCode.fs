@@ -352,6 +352,30 @@ module AdventOfCode =
             |> tee (List.length >> printfn "Found seats: %A")
             |> List.head
 
+    [<RequireQualifiedAccess>]
+    module Day6 =
+        let countAnswersInGroups input =
+            input
+            |> String.concat "\n"
+            |> String.split "\n\n"
+            |> Seq.map (String.replace "\n" "" >> Seq.toList >> Seq.distinct)
+            |> Seq.sumBy Seq.length
+
+        let countAnswerEveryOneInTheGroupHas input =
+            input
+            |> String.concat "\n"
+            |> String.split "\n\n"
+            |> Seq.sumBy (fun group ->
+                let persons =
+                    group
+                    |> String.split "\n"
+                    |> Seq.map Set.ofSeq
+
+                persons
+                |> Seq.fold Set.intersect (persons |> Seq.head)
+                |> Seq.length
+            )
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -432,6 +456,13 @@ module AdventOfCode =
                 else inputLines |> Day5.findMySeat
 
             return! handleResult int day5result
+        | 6 ->
+            let day6result =
+                if firstPuzzle
+                then inputLines |> Day6.countAnswersInGroups
+                else inputLines |> Day6.countAnswerEveryOneInTheGroupHas
+
+            return! handleResult int day6result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })

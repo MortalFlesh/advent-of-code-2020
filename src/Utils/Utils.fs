@@ -63,6 +63,9 @@ module String =
     let split (separator: string) (value: string) =
         value.Split(separator) |> Seq.toList
 
+    let replace (find: string) (replacement: string) (string: string) =
+        string.Replace(find, replacement)
+
     let replaceAll (replace: string list) replacement (value: string) =
         replace
         |> List.fold (fun (value: string) toRemove ->
