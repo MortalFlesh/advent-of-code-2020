@@ -361,7 +361,20 @@ module AdventOfCode =
             |> Seq.map (String.replace "\n" "" >> Seq.toList >> Seq.distinct)
             |> Seq.sumBy Seq.length
 
-        let second input = 0
+        let countAnswerEveryOneInTheGroupHas input =
+            input
+            |> String.concat "\n"
+            |> String.split "\n\n"
+            |> Seq.sumBy (fun group ->
+                let persons =
+                    group
+                    |> String.split "\n"
+                    |> Seq.map Set.ofSeq
+
+                persons
+                |> Seq.fold Set.intersect (persons |> Seq.head)
+                |> Seq.length
+            )
 
     let args = [
         Argument.required "day" "A number of a day you are running"
@@ -447,7 +460,7 @@ module AdventOfCode =
             let day6result =
                 if firstPuzzle
                 then inputLines |> Day6.countAnswersInGroups
-                else inputLines |> Day6.second
+                else inputLines |> Day6.countAnswerEveryOneInTheGroupHas
 
             return! handleResult int day6result
         | day ->
