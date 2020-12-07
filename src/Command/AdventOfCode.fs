@@ -383,29 +383,19 @@ module AdventOfCode =
             Content: string list
         }
 
-        let private parseRule = String.trim ' '(*  >> (tee (printfn "ParseRule: %A")) *) >> function
+        let private parseRuleColor = String.trim ' ' >> function
             | null | "" -> None
-            | "no other bags" -> Some []
-            | Regex @"^(\d+?) ([\w ]+?) bags?$" [ _number; color ] ->
-                // printfn " *<parsed>*-> %s" color
-                Some [ color.Trim ' ' ]
+            | "no other bags" -> None
+            | Regex @"^(\d+?) ([\w ]+?) bags?$" [ _count; color ] ->
+                Some (color.Trim ' ')
             | _ -> None
 
-        let private parseColorLine = function
+        let private parseColorLine parseRule = function
             | null | "" -> None
             | Regex @"^([\w ]+?)bags contain(.+)\.$" [ color; contains ] ->
-                (* printfn "color: %s | contains: %s\n -> parsed: %s\n" color contains
-                    (
-                        contains.Split ','
-                        |> Seq.toList
-                        |> List.choose parseRule
-                        |> List.concat
-                        |> String.concat ", "
-                    ) *)
-
                 Some (
                     color.Trim ' ',
-                    contains.Split ',' |> Seq.toList |> List.choose parseRule |> List.concat
+                    contains.Split ',' |> Seq.toList |> List.choose parseRule
                 )
             | _ -> None
 
@@ -432,7 +422,7 @@ module AdventOfCode =
 
         let countBagColorsWhichCanContainShinyGoldBag input =
             input
-            |> List.choose parseColorLine
+            |> List.choose (parseColorLine parseRuleColor)
             //|> tee (List.iter (fun (c, colors) -> printfn " - %s: %s // directly" c (colors |> String.concat ", ")))
             //|> tee (ignore >> printfn "    --- %A ---")
             |> collectColors
@@ -443,7 +433,39 @@ module AdventOfCode =
                 else 0
             )
 
-        let second input = 0
+        type private Rule =
+            | NoOtherBags
+            | OtherBag of int * string
+
+        let private parseRule = String.trim ' ' >> function
+            | null | "" -> None
+            | "no other bags" -> Some NoOtherBags
+            | Regex @"^(\d+?) ([\w ]+?) bags?$" [ count; color ] ->
+                Some ( OtherBag (int count, color.Trim ' ') )
+            | _ -> None
+
+        let private countBags wantedColor allColors =
+            let allColorsMap =
+                allColors
+                |> Map.ofList
+
+            let rec countAllBags acc = function
+                | [] -> acc
+                | NoOtherBags :: rules -> rules |> countAllBags acc
+                | OtherBag (count, color) :: rules ->
+                    let deep =
+                        match allColorsMap |> Map.tryFind color with
+                        | Some rules -> rules |> countAllBags 0
+                        | _ -> 0
+
+                    rules |> countAllBags (acc + deep * count + count)
+
+            allColorsMap.[wantedColor] |> countAllBags 0
+
+        let countAllBagsInShinyGoldBag input =
+            input
+            |> List.choose (parseColorLine parseRule)
+            |> countBags "shiny gold"
 
     let args = [
         Argument.required "day" "A number of a day you are running"
@@ -536,7 +558,7 @@ module AdventOfCode =
             let day7result =
                 if firstPuzzle
                 then inputLines |> Day7.countBagColorsWhichCanContainShinyGoldBag
-                else inputLines |> Day7.second
+                else inputLines |> Day7.countAllBagsInShinyGoldBag
 
             return! handleResult int day7result
         | day ->
