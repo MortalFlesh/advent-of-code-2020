@@ -376,6 +376,97 @@ module AdventOfCode =
                 |> Seq.length
             )
 
+    [<RequireQualifiedAccess>]
+    module Day7 =
+        type private Color = {
+            Name: string
+            Content: string list
+        }
+
+        let private parseRuleColor = String.trim ' ' >> function
+            | null | "" -> None
+            | "no other bags" -> None
+            | Regex @"^(\d+?) ([\w ]+?) bags?$" [ _count; color ] ->
+                Some (color.Trim ' ')
+            | _ -> None
+
+        let private parseColorLine parseRule = function
+            | null | "" -> None
+            | Regex @"^([\w ]+?)bags contain(.+)\.$" [ color; contains ] ->
+                Some (
+                    color.Trim ' ',
+                    contains.Split ',' |> Seq.toList |> List.choose parseRule
+                )
+            | _ -> None
+
+        let private collectColors allColors =
+            let allColorsMap =
+                allColors
+                |> Map.ofList
+
+            let rec findAllColors (acc: Set<string>) = function
+                | [] -> acc
+                | color :: content ->
+                    let currentColorColors =
+                        match allColorsMap |> Map.tryFind color with
+                        | Some directlyContains ->
+                            directlyContains
+                            |> findAllColors (acc |> Set.union (directlyContains |> Set.ofList))
+
+                        | _ -> Set.empty
+
+                    content |> findAllColors (acc |> Set.union currentColorColors)
+
+            allColorsMap
+            |> Map.map (fun color directlyContains -> directlyContains |> findAllColors (directlyContains |> Set.ofList))
+
+        let countBagColorsWhichCanContainShinyGoldBag input =
+            input
+            |> List.choose (parseColorLine parseRuleColor)
+            //|> tee (List.iter (fun (c, colors) -> printfn " - %s: %s // directly" c (colors |> String.concat ", ")))
+            //|> tee (ignore >> printfn "    --- %A ---")
+            |> collectColors
+            |> Map.toList
+            //|> tee (List.iter (fun (c, colors) -> printfn " * %s: %s // collected" c (colors |> String.concat ", ")))
+            |> List.sumBy (fun (c, colors) ->
+                if colors |> Set.contains "shiny gold" then 1
+                else 0
+            )
+
+        type private Rule =
+            | NoOtherBags
+            | OtherBag of int * string
+
+        let private parseRule = String.trim ' ' >> function
+            | null | "" -> None
+            | "no other bags" -> Some NoOtherBags
+            | Regex @"^(\d+?) ([\w ]+?) bags?$" [ count; color ] ->
+                Some ( OtherBag (int count, color.Trim ' ') )
+            | _ -> None
+
+        let private countBags wantedColor allColors =
+            let allColorsMap =
+                allColors
+                |> Map.ofList
+
+            let rec countAllBags acc = function
+                | [] -> acc
+                | NoOtherBags :: rules -> rules |> countAllBags acc
+                | OtherBag (count, color) :: rules ->
+                    let deep =
+                        match allColorsMap |> Map.tryFind color with
+                        | Some rules -> rules |> countAllBags 0
+                        | _ -> 0
+
+                    rules |> countAllBags (acc + deep * count + count)
+
+            allColorsMap.[wantedColor] |> countAllBags 0
+
+        let countAllBagsInShinyGoldBag input =
+            input
+            |> List.choose (parseColorLine parseRule)
+            |> countBags "shiny gold"
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -463,6 +554,13 @@ module AdventOfCode =
                 else inputLines |> Day6.countAnswerEveryOneInTheGroupHas
 
             return! handleResult int day6result
+        | 7 ->
+            let day7result =
+                if firstPuzzle
+                then inputLines |> Day7.countBagColorsWhichCanContainShinyGoldBag
+                else inputLines |> Day7.countAllBagsInShinyGoldBag
+
+            return! handleResult int day7result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
