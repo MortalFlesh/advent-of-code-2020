@@ -376,6 +376,75 @@ module AdventOfCode =
                 |> Seq.length
             )
 
+    [<RequireQualifiedAccess>]
+    module Day7 =
+        type private Color = {
+            Name: string
+            Content: string list
+        }
+
+        let private parseRule = String.trim ' '(*  >> (tee (printfn "ParseRule: %A")) *) >> function
+            | null | "" -> None
+            | "no other bags" -> Some []
+            | Regex @"^(\d+?) ([\w ]+?) bags?$" [ _number; color ] ->
+                // printfn " *<parsed>*-> %s" color
+                Some [ color.Trim ' ' ]
+            | _ -> None
+
+        let private parseColorLine = function
+            | null | "" -> None
+            | Regex @"^([\w ]+?)bags contain(.+)\.$" [ color; contains ] ->
+                (* printfn "color: %s | contains: %s\n -> parsed: %s\n" color contains
+                    (
+                        contains.Split ','
+                        |> Seq.toList
+                        |> List.choose parseRule
+                        |> List.concat
+                        |> String.concat ", "
+                    ) *)
+
+                Some (
+                    color.Trim ' ',
+                    contains.Split ',' |> Seq.toList |> List.choose parseRule |> List.concat
+                )
+            | _ -> None
+
+        let private collectColors allColors =
+            let allColorsMap =
+                allColors
+                |> Map.ofList
+
+            let rec findAllColors (acc: Set<string>) = function
+                | [] -> acc
+                | color :: content ->
+                    let currentColorColors =
+                        match allColorsMap |> Map.tryFind color with
+                        | Some directlyContains ->
+                            directlyContains
+                            |> findAllColors (acc |> Set.union (directlyContains |> Set.ofList))
+
+                        | _ -> Set.empty
+
+                    content |> findAllColors (acc |> Set.union currentColorColors)
+
+            allColorsMap
+            |> Map.map (fun color directlyContains -> directlyContains |> findAllColors (directlyContains |> Set.ofList))
+
+        let countBagColorsWhichCanContainShinyGoldBag input =
+            input
+            |> List.choose parseColorLine
+            //|> tee (List.iter (fun (c, colors) -> printfn " - %s: %s // directly" c (colors |> String.concat ", ")))
+            //|> tee (ignore >> printfn "    --- %A ---")
+            |> collectColors
+            |> Map.toList
+            //|> tee (List.iter (fun (c, colors) -> printfn " * %s: %s // collected" c (colors |> String.concat ", ")))
+            |> List.sumBy (fun (c, colors) ->
+                if colors |> Set.contains "shiny gold" then 1
+                else 0
+            )
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -463,6 +532,13 @@ module AdventOfCode =
                 else inputLines |> Day6.countAnswerEveryOneInTheGroupHas
 
             return! handleResult int day6result
+        | 7 ->
+            let day7result =
+                if firstPuzzle
+                then inputLines |> Day7.countBagColorsWhichCanContainShinyGoldBag
+                else inputLines |> Day7.second
+
+            return! handleResult int day7result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
