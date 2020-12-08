@@ -499,7 +499,7 @@ module AdventOfCode =
 
                 operations.[nextOperation] |> execute operations (i :: executed, acc)
 
-        let first input =
+        let runProgramWithoutLooping input =
             let operations =
                 input
                 |> List.choose parseOperation
@@ -507,7 +507,65 @@ module AdventOfCode =
 
             operations.Head |> execute operations ([], 0)
 
-        let second input = 0
+        type private Operation2 =
+            | Acc of int
+            | Jmp of int
+            | Nop of int
+            | Terminate
+
+        let private parseOperation2 = function
+            | null | "" -> None
+            | Regex @"^(\w{3}) (\+|-)(\d+)$" [ operation; sign; value ] ->
+                match operation with
+                | "acc" -> Some (Acc (signed sign value))
+                | "jmp" -> Some (Jmp (signed sign value))
+                | "nop" -> Some (Nop (signed sign value))
+                | _ -> None
+            | _ -> None
+
+        let private fixOperation = function
+            | Nop value -> Jmp value
+            | Jmp value -> Nop value
+            | operation -> operation
+
+        let rec private executeToEnd (operations: Map<int, Operation2>) (executed, acc) = function
+            | _, Terminate -> Some acc
+            | i, _ when executed |> List.contains i -> None
+            | i, operation ->
+                let acc, nextOperation =
+                    match operation with
+                    | Acc value -> acc + value, i + 1
+                    | Nop _ -> acc, i + 1
+                    | Jmp value -> acc, i + value
+                    | invalid -> failwithf "Invalid operation %A" invalid
+
+                (nextOperation, operations.[nextOperation]) |> executeToEnd operations (i :: executed, acc)
+
+        let runProgramWithFixToTheEnd input =
+            let operations =
+                (input
+                |> List.choose parseOperation2)
+                @ [ Terminate ]
+                |> List.mapi (fun i operation -> i, operation)
+
+            let fixableOperations =
+                operations
+                |> List.choose (function
+                    | (i, Nop _)
+                    | (i, Jmp _) -> Some i
+                    | _ -> None
+                )
+
+            let operationsMap = operations |> Map.ofList
+
+            fixableOperations
+            |> List.pick (fun fixable ->
+                let fixedOperations =
+                    operationsMap
+                    |> Map.add fixable (operationsMap.[fixable] |> fixOperation)
+
+                (0, fixedOperations.[0]) |> executeToEnd fixedOperations ([], 0)
+            )
 
     let args = [
         Argument.required "day" "A number of a day you are running"
@@ -606,8 +664,8 @@ module AdventOfCode =
         | 8 ->
             let day8result =
                 if firstPuzzle
-                then inputLines |> Day8.first
-                else inputLines |> Day8.second
+                then inputLines |> Day8.runProgramWithoutLooping
+                else inputLines |> Day8.runProgramWithFixToTheEnd
 
             return! handleResult int day8result
         | day ->
