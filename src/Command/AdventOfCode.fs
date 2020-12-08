@@ -467,6 +467,48 @@ module AdventOfCode =
             |> List.choose (parseColorLine parseRule)
             |> countBags "shiny gold"
 
+    [<RequireQualifiedAccess>]
+    module Day8 =
+        type private Operation =
+            | Acc of int
+            | Jmp of int
+            | Nop
+
+        let private signed sign value =
+            if sign = "+" then (int value)
+            else -1 * (int value)
+
+        let private parseOperation = function
+            | null | "" -> None
+            | Regex @"^(\w{3}) (\+|-)(\d+)$" [ operation; sign; value ] ->
+                match operation with
+                | "acc" -> Some (Acc (signed sign value))
+                | "jmp" -> Some (Jmp (signed sign value))
+                | "nop" -> Some (Nop)
+                | _ -> None
+            | _ -> None
+
+        let rec private execute (operations: (int * Operation) list) (executed, acc) (i, operation) =
+            if executed |> List.contains i then acc
+            else
+                let acc, nextOperation =
+                    match operation with
+                    | Acc value -> acc + value, i + 1
+                    | Nop -> acc, i + 1
+                    | Jmp value -> acc, i + value
+
+                operations.[nextOperation] |> execute operations (i :: executed, acc)
+
+        let first input =
+            let operations =
+                input
+                |> List.choose parseOperation
+                |> List.mapi (fun i operation -> i, operation)
+
+            operations.Head |> execute operations ([], 0)
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -561,6 +603,13 @@ module AdventOfCode =
                 else inputLines |> Day7.countAllBagsInShinyGoldBag
 
             return! handleResult int day7result
+        | 8 ->
+            let day8result =
+                if firstPuzzle
+                then inputLines |> Day8.first
+                else inputLines |> Day8.second
+
+            return! handleResult int day8result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
