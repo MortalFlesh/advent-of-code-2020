@@ -567,6 +567,31 @@ module AdventOfCode =
                 (0, fixedOperations.[0]) |> executeToEnd fixedOperations ([], 0)
             )
 
+    [<RequireQualifiedAccess>]
+    module Day9 =
+        let private isValid (values: int64 list) number =
+            seq {
+                for a in 0 .. values.Length - 2 do
+                    for b in a + 1 .. values.Length - 1 do
+                        values.[a] + values.[b]
+            }
+            |> Seq.exists ((=) number)
+
+        let findFirstNumberThatDoesntFollowTheRule input =
+            let input = input |> List.map int64
+            let preambleLength = if input |> List.length < 25 then 5 else 25
+
+            input.[preambleLength..]
+            |> List.mapi (fun i value -> i, value)
+            |> List.find (fun (i, value) ->
+                value
+                |> isValid (input.[i..] |> List.take preambleLength)
+                |> not
+            )
+            |> snd
+
+        let second input = int64 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -668,6 +693,13 @@ module AdventOfCode =
                 else inputLines |> Day8.runProgramWithFixToTheEnd
 
             return! handleResult int day8result
+        | 9 ->
+            let day9result =
+                if firstPuzzle
+                then inputLines |> Day9.findFirstNumberThatDoesntFollowTheRule
+                else inputLines |> Day9.second
+
+            return! handleResult int64 day9result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
