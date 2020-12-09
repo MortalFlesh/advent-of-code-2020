@@ -590,7 +590,27 @@ module AdventOfCode =
             )
             |> snd
 
-        let second input = int64 0
+        let private findContigousSetToMatchNumber number (input: _ list) =
+            let input = input |> List.mapi (fun i value -> i, value)
+
+            let rec sum start acc = function
+                | [] -> None
+                | (_, overLimit) :: _ when (overLimit + acc) > number -> None
+                | (i, correct) :: _ when (correct + acc) = number -> Some (input.[start .. i] |> List.map snd)
+                | (_, value) :: values -> values |> sum start (acc + value)
+
+            input
+            |> List.pick (fun (i, _) -> sum i (int64 0) input.[i..])
+
+        let breakTheEncryption input =
+            let invalidNumber = input |> findFirstNumberThatDoesntFollowTheRule
+            let input = input |> List.map int64
+
+            let (min, max) =
+                let setOfNumbers = input |> findContigousSetToMatchNumber invalidNumber
+                (setOfNumbers |> List.min), (setOfNumbers |> List.max)
+
+            min + max
 
     let args = [
         Argument.required "day" "A number of a day you are running"
@@ -697,7 +717,7 @@ module AdventOfCode =
             let day9result =
                 if firstPuzzle
                 then inputLines |> Day9.findFirstNumberThatDoesntFollowTheRule
-                else inputLines |> Day9.second
+                else inputLines |> Day9.breakTheEncryption
 
             return! handleResult int64 day9result
         | day ->
