@@ -612,6 +612,46 @@ module AdventOfCode =
 
             min + max
 
+    [<RequireQualifiedAccess>]
+    module Day10 =
+        let first input =
+            let input =
+                input
+                |> List.map int
+                |> List.sort
+
+            let rec tryFindJoltage (differences: int list) = function
+                | [] -> []
+
+                | [ last ] -> 3 :: differences
+
+                | value :: next :: values when value + 1 = next -> next :: values |> tryFindJoltage (1 :: differences)
+                | value :: next :: values when value + 2 = next -> next :: values |> tryFindJoltage (2 :: differences)
+                | value :: next :: values when value + 3 = next -> next :: values |> tryFindJoltage (3 :: differences)
+
+                | _ -> []
+
+            let joltageSequenceDifferences =
+                0 :: input
+                |> tryFindJoltage []
+
+            let one, two, three =
+                match joltageSequenceDifferences |> List.countBy id |> List.sortBy fst with
+                | [ (1, ones) ] -> (ones, 0, 0)
+                | [ (2, twos) ] -> (0, twos, 0)
+                | [ (3, threes) ] -> (0, 0, threes)
+                | [ (1, ones); (2, twos) ] -> (ones, twos, 0)
+                | [ (1, ones); (3, threes) ] -> (ones, 0, threes)
+                | [ (2, twos); (3, threes) ] -> (0, twos, threes)
+                | [ (1, ones); (2, twos); (3, threes) ] -> (ones, twos, threes)
+                | _ -> 0, 0, 0
+
+            printfn "1: %A | 2: %A | 3: %A" one two three
+
+            one * three
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -720,6 +760,13 @@ module AdventOfCode =
                 else inputLines |> Day9.breakTheEncryption
 
             return! handleResult int64 day9result
+        | 10 ->
+            let day10result =
+                if firstPuzzle
+                then inputLines |> Day10.first
+                else inputLines |> Day10.second
+
+            return! handleResult int day10result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
