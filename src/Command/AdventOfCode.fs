@@ -612,6 +612,157 @@ module AdventOfCode =
 
             min + max
 
+    [<RequireQualifiedAccess>]
+    module Day10 =
+        let findJoltageChain input =
+            let input =
+                input
+                |> List.map int
+                |> List.sort
+
+            let rec tryFindJoltage (differences: int list) = function
+                | [] -> []
+
+                | [ last ] -> 3 :: differences
+
+                | value :: next :: values when value + 1 = next -> next :: values |> tryFindJoltage (1 :: differences)
+                | value :: next :: values when value + 2 = next -> next :: values |> tryFindJoltage (2 :: differences)
+                | value :: next :: values when value + 3 = next -> next :: values |> tryFindJoltage (3 :: differences)
+
+                | _ -> []
+
+            let joltageSequenceDifferences =
+                0 :: input
+                |> tryFindJoltage []
+
+            let one, two, three =
+                match joltageSequenceDifferences |> List.countBy id |> List.sortBy fst with
+                | [ (1, ones) ] -> (ones, 0, 0)
+                | [ (2, twos) ] -> (0, twos, 0)
+                | [ (3, threes) ] -> (0, 0, threes)
+                | [ (1, ones); (2, twos) ] -> (ones, twos, 0)
+                | [ (1, ones); (3, threes) ] -> (ones, 0, threes)
+                | [ (2, twos); (3, threes) ] -> (0, twos, threes)
+                | [ (1, ones); (2, twos); (3, threes) ] -> (ones, twos, threes)
+                | _ -> 0, 0, 0
+
+            printfn "1: %A | 2: %A | 3: %A" one two three
+
+            one * three
+
+        let findAllPossibleJoltageChains input =
+            let input =
+                input
+                |> List.map int
+                |> List.sort
+
+            let input = 0 :: input
+            let lastValue = input |> List.max
+
+            let rec tryFindJoltage = function
+                | [] -> None
+
+                | [ last ] when last = lastValue -> Some 1
+
+                | value :: next :: values when value + 1 = next -> next :: values |> tryFindJoltage
+                | value :: next :: values when value + 2 = next -> next :: values |> tryFindJoltage
+                | value :: next :: values when value + 3 = next -> next :: values |> tryFindJoltage
+
+                | _ -> None
+
+            let inputIndexes = [0 .. input.Length - 1]
+
+            // skip bude list indexu, ktere preskocim
+            // pro [ 1, 2, 3, 4 ] (L=4) by to bylo
+            // * 0:  [ []  []  []  [] ]
+            // * 1:  [ [0] [1] [2] [3] ]
+            // * 2:  [ [0, 1] [0, 2] [0, 3] [1, 2] [1, 3] [2, 3] ]
+            // * 3:  [ [0, 1, 2] [0, 1, 3] [0, 2, 3] ... ]
+            // * L-1 !
+
+            let skippedIndexes =
+                let firstPossibleIdxToSkip = 1
+                let len = input.Length - 1 // last number cannot be replaced
+
+                seq {
+                    yield seq { [] }    // original values (skip none)
+
+                    for size in 1 .. len - 1 do
+                        if size = 1 then yield seq { firstPossibleIdxToSkip .. len - 1 } |> Seq.map List.singleton
+
+                        if size = 2 then
+                            yield seq {
+                                for i in firstPossibleIdxToSkip .. len - 2 do
+                                    for j in i + 1 .. len - 1 do
+                                        yield [ i; j ]
+                            }
+
+                        if size = 3 then
+                            yield seq {
+                                for i in firstPossibleIdxToSkip .. len - 3 do
+                                    for j in i + 1 .. len - 2 do
+                                        for k in j + 1 .. len - 1 do
+                                            yield [ i; j; k ]
+                            }
+
+                        if size = 4 then
+                            yield seq {
+                                for i in firstPossibleIdxToSkip .. len - 4 do
+                                    for j in i + 1 .. len - 3 do
+                                        for k in j + 1 .. len - 2 do
+                                            for l in k + 1 .. len - 1 do
+                                                yield [ i; j; k; l ]
+                            }
+
+                        if size = 5 then
+                            yield seq {
+                                for i in firstPossibleIdxToSkip .. len - 5 do
+                                for j in i + 1 .. len - 4 do
+                                for k in j + 1 .. len - 3 do
+                                for l in k + 1 .. len - 2 do
+                                for m in l + 1 .. len - 1 do
+                                    yield [ i; j; k; l; m ]
+                            }
+
+                        if size = 6 then
+                            yield seq {
+                                for i in firstPossibleIdxToSkip .. len - 6 do
+                                for j in i + 1 .. len - 5 do
+                                for k in j + 1 .. len - 4 do
+                                for l in k + 1 .. len - 3 do
+                                for m in l + 1 .. len - 2 do
+                                for n in m + 1 .. len - 1 do
+                                    yield [ i; j; k; l; m; n ]
+                            }
+
+                        // todo - this would go to the max(size) with a dynamic number of inside for loops...
+                }
+                |> Seq.concat
+                |> Seq.map Set.ofList
+                |> Seq.distinct
+                |> Seq.sortBy Set.count
+
+            (* printfn "L: %A" input.Length
+            skippedIndexes
+            //|> Seq.filter (Set.count >> (=) 1)
+            |> Seq.iter (printfn "* %A") *)
+
+            let skip (skipped: Set<int>) list =
+                list
+                |> List.mapi (fun i value -> if skipped.Contains i then None else Some value)
+                |> List.choose id
+
+            skippedIndexes
+            |> Seq.choose (fun skipped ->
+                input
+                |> skip skipped
+                // |> tee (printfn "input: %A with skipped %A -> %A" input skipped)
+                |> tryFindJoltage
+                // |> tee (Option.isSome >> printfn " -> is valid %A")
+                // |> tee (function None -> () | Some _ -> printfn "input: %A with skipped %A -> %A" input skipped (input |> skip skipped |> List.map string |> String.concat ", "))
+            )
+            |> Seq.sum
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -720,6 +871,13 @@ module AdventOfCode =
                 else inputLines |> Day9.breakTheEncryption
 
             return! handleResult int64 day9result
+        | 10 ->
+            let day10result =
+                if firstPuzzle
+                then inputLines |> Day10.findJoltageChain
+                else inputLines |> Day10.findAllPossibleJoltageChains
+
+            return! handleResult int day10result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
