@@ -763,6 +763,119 @@ module AdventOfCode =
             )
             |> Seq.sum
 
+    [<RequireQualifiedAccess>]
+    module Day11 =
+        type private Place =
+            | Floor
+            | EmptySeat
+            | OccupiedSeat
+
+        let private parse = function
+            | '.' -> Floor
+            | 'L' -> EmptySeat
+            | '#' -> OccupiedSeat
+            | invalid -> failwithf "Invalid %A" invalid
+
+        let private parseLine (line: string) =
+            line |> Seq.map parse |> Seq.toList
+
+        let private place = function
+            | Floor -> "."
+            | EmptySeat -> "L"
+            | OccupiedSeat -> "#"
+
+        type private Boat = (Place list) list
+
+        let private isEmpty = function
+            | Floor | EmptySeat -> 1
+            | _ -> 0
+
+        let private isOccupied = function
+            | OccupiedSeat -> Some OccupiedSeat
+            | _ -> None
+
+        let private occupiedAdjacentPlaces (places: Boat) row col =
+            //printfn "For [%A][%A]\n-------------" row col
+            seq {
+                for c in (col - 1 |> max 0) .. (col + 1 |> min (places.[row].Length - 1)) do
+                    if row > 0 then
+                        //printf "up [%A][%A]" (row-1) c
+                        places.[row-1].[c] |> isOccupied
+                        //|> tee (printfn " -> %A")
+
+                    if c <> col then
+                        //printf "at [%A][%A]" (row) c
+                        places.[row].[c] |> isOccupied
+                        //|> tee (printfn " -> %A")
+
+                    if row < places.Length - 1 then
+                        //printf "do [%A][%A]" (row+1) c
+                        places.[row+1].[c] |> isOccupied
+                        //|> tee (printfn " -> %A")
+            }
+
+        let private round findOccupiedSeats (places: Boat): Boat =
+            [
+                for row in 0 .. places.Length - 1 do
+                    [
+                        for col in 0 .. places.[row].Length - 1 do
+                            yield
+                                match places.[row].[col] with
+                                | Floor -> Floor
+
+                                | EmptySeat ->
+                                    findOccupiedSeats places row col
+                                    |> Seq.tryPick id
+                                    |> Option.bind (fun _ -> Some EmptySeat)
+                                    |> Option.defaultValue OccupiedSeat
+                                    // |> tee (printfn "Empty at [%A][%A] -> %A" row col)
+
+                                | OccupiedSeat ->
+                                    let mutable acc = 0
+
+                                    findOccupiedSeats places row col
+                                    |> Seq.tryPick (function
+                                        | Some OccupiedSeat ->
+                                            acc <- acc + 1
+
+                                            if acc >= 4 then Some EmptySeat
+                                            else None
+                                        | _ -> None
+                                    )
+                                    |> Option.defaultValue OccupiedSeat
+                                    // |> tee (printfn "Occupied at [%A][%A] -> %A" row col)
+                    ]
+            ]
+
+        let countOccupiedSeats input =
+            // let mutable i = 0
+            let rec run (previous: Boat) (current: Boat) =
+                (* i <- i + 1
+                printfn "%s" (String.replicate (current.[0].Length) "_")
+                printfn " Round: %A" i
+                printfn "%s" (String.replicate (current.[0].Length) "-")
+                current
+                |> List.iter (List.map place >> String.concat "" >> printfn "%s") *)
+
+                if previous = current
+                    then
+                        current
+                        |> List.concat
+                        |> List.sumBy (function
+                            | OccupiedSeat -> 1
+                            | _ -> 0
+                        )
+                    else
+                        current
+                        |> round occupiedAdjacentPlaces
+                        |> run current
+
+            input
+            |> List.map parseLine
+            |> run []
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -878,6 +991,13 @@ module AdventOfCode =
                 else inputLines |> Day10.findAllPossibleJoltageChains
 
             return! handleResult int day10result
+        | 11 ->
+            let day11result =
+                if firstPuzzle
+                then inputLines |> Day11.countOccupiedSeats
+                else inputLines |> Day11.second
+
+            return! handleResult int day11result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
