@@ -763,6 +763,261 @@ module AdventOfCode =
             )
             |> Seq.sum
 
+    [<RequireQualifiedAccess>]
+    module Day11 =
+        type private Place =
+            | Floor
+            | EmptySeat
+            | OccupiedSeat
+
+        let private parse = function
+            | '.' -> Floor
+            | 'L' -> EmptySeat
+            | '#' -> OccupiedSeat
+            | invalid -> failwithf "Invalid %A" invalid
+
+        let private parseLine (line: string) =
+            line |> Seq.map parse |> Seq.toList
+
+        let private place = function
+            | Floor -> "."
+            | EmptySeat -> "L"
+            | OccupiedSeat -> "#"
+
+        type private Boat = (Place list) list
+
+        let private isEmpty = function
+            | Floor | EmptySeat -> 1
+            | _ -> 0
+
+        let private isOccupied = function
+            | OccupiedSeat -> Some OccupiedSeat
+            | _ -> None
+
+        let private occupiedAdjacentPlaces (places: Boat) row col =
+            //printfn "For [%A][%A]\n-------------" row col
+            seq {
+                for c in (col - 1 |> max 0) .. (col + 1 |> min (places.[row].Length - 1)) do
+                    if row > 0 then
+                        //printf "up [%A][%A]" (row-1) c
+                        places.[row-1].[c] |> isOccupied
+                        //|> tee (printfn " -> %A")
+
+                    if c <> col then
+                        //printf "at [%A][%A]" (row) c
+                        places.[row].[c] |> isOccupied
+                        //|> tee (printfn " -> %A")
+
+                    if row < places.Length - 1 then
+                        //printf "do [%A][%A]" (row+1) c
+                        places.[row+1].[c] |> isOccupied
+                        //|> tee (printfn " -> %A")
+            }
+
+        let private round findOccupiedSeats numberOfOccupiedSeats (places: Boat): Boat =
+            [
+                for row in 0 .. places.Length - 1 do
+                    [
+                        for col in 0 .. places.[row].Length - 1 do
+                            yield
+                                match places.[row].[col] with
+                                | Floor -> Floor
+
+                                | EmptySeat ->
+                                    findOccupiedSeats places row col
+                                    |> Seq.tryPick id
+                                    |> Option.bind (fun _ -> Some EmptySeat)
+                                    |> Option.defaultValue OccupiedSeat
+                                    // |> tee (printfn "Empty at [%A][%A] -> %A" row col)
+
+                                | OccupiedSeat ->
+                                    let mutable acc = 0
+
+                                    findOccupiedSeats places row col
+                                    |> Seq.tryPick (function
+                                        | Some OccupiedSeat ->
+                                            acc <- acc + 1
+
+                                            if acc >= numberOfOccupiedSeats then Some EmptySeat
+                                            else None
+                                        | _ -> None
+                                    )
+                                    |> Option.defaultValue OccupiedSeat
+                                    // |> tee (printfn "Occupied at [%A][%A] -> %A" row col)
+                    ]
+            ]
+
+        let countOccupiedSeats input =
+            // let mutable i = 0
+            let rec run (previous: Boat) (current: Boat) =
+                (* i <- i + 1
+                printfn "%s" (String.replicate (current.[0].Length) "_")
+                printfn " Round: %A" i
+                printfn "%s" (String.replicate (current.[0].Length) "-")
+                current
+                |> List.iter (List.map place >> String.concat "" >> printfn "%s") *)
+
+                if previous = current
+                    then
+                        current
+                        |> List.concat
+                        |> List.sumBy (function
+                            | OccupiedSeat -> 1
+                            | _ -> 0
+                        )
+                    else
+                        current
+                        |> round occupiedAdjacentPlaces 4
+                        |> run current
+
+            input
+            |> List.map parseLine
+            |> run []
+
+        type private Seat =
+            | OutOfBoat
+            | Occupied
+            | Empty
+
+        let private isOccupiedSeat = function
+            | Occupied -> Some OccupiedSeat
+            | _ -> None
+
+        let private checkPlace direction (places: Boat) row col =
+            if row < 0 || col < 0 || row >= places.Length || col >= places.[0].Length then
+                // printfn " * %s [%A][%A] -> out of boat" direction row col
+                Some OutOfBoat
+            else
+                // printf " * %s [%A][%A]" direction row col
+                match places.[row].[col] with
+                | EmptySeat -> Some Empty
+                | OccupiedSeat -> Some Occupied
+                | Floor -> None
+                // |> tee (printfn " -> %A")
+
+        let private occupiedPlacesOnSight (places: Boat) row col =
+            // printfn "\nFor [%A][%A] %A\n-------------" row col places.[row].[col]
+            seq {
+                // let leftUp =
+                seq {
+                    for i in [1 .. (row |> max col)] do
+                        let r = row - i
+                        let c = col - i
+
+                        checkPlace "LU" places r c
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "LU for [%A][%A]: %A" row col)
+
+                //let up =
+                seq {
+                    for i in [1 .. row] do
+                        let r = row - i
+
+                        checkPlace "U" places r col
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "U  for [%A][%A]: %A" row col)
+
+                //let rightUp =
+                seq {
+                    for i in [1 .. ((row |> max col))] do
+                        let r = row - i
+                        let c = col + i
+
+                        checkPlace "RU" places r c
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "RU for [%A][%A]: %A" row col)
+
+                // let left =
+                seq {
+                    for i in [1 .. col] do
+                        let c = col - i
+
+                        checkPlace "L" places row c
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "L for [%A][%A]: %A" row col)
+
+                //let right =
+                seq {
+                    for i in [1 .. places.[0].Length] do
+                        let c = col + i
+
+                        checkPlace "R" places row c
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "R  for [%A][%A]: %A" row col)
+
+                // let leftDown =
+                seq {
+                    for i in [1 .. ((places.Length |> max places.[0].Length))] do
+                        let r = row + i
+                        let c = col + i
+
+                        checkPlace "LD" places r c
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "LD for [%A][%A]: %A" row col)
+
+                //let down =
+                seq {
+                    for i in [1 .. places.Length - 1] do
+                        let r = row + i
+
+                        checkPlace "D" places r col
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "D  for [%A][%A]: %A" row col)
+
+                // let rightDown =
+                seq {
+                    for i in [1 .. ((places.Length |> max places.[0].Length))] do
+                        let r = row + i
+                        let c = col - i
+
+                        checkPlace "RD" places r c
+                }
+                |> Seq.tryPick id
+                |> Option.bind isOccupiedSeat
+                // |> tee (printfn "RD for [%A][%A]: %A" row col)
+            }
+
+        let countOccupiedSeatsOnSight input =
+            // let mutable i = 0
+            let rec run (previous: Boat) (current: Boat) =
+                //i <- i + 1
+                (* printfn "%s" (String.replicate (current.[0].Length) "_")
+                printfn " Round: %A" i
+                printfn "%s" (String.replicate (current.[0].Length) "-")
+                current
+                |> List.iter (List.map place >> String.concat "" >> printfn "%s") *)
+
+                if previous = current
+                    then
+                        current
+                        |> List.concat
+                        |> List.sumBy (function
+                            | OccupiedSeat -> 1
+                            | _ -> 0
+                        )
+                    else
+                        current
+                        |> round occupiedPlacesOnSight 5
+                        |> run current
+
+            input
+            |> List.map parseLine
+            |> run []
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -878,6 +1133,13 @@ module AdventOfCode =
                 else inputLines |> Day10.findAllPossibleJoltageChains
 
             return! handleResult int day10result
+        | 11 ->
+            let day11result =
+                if firstPuzzle
+                then inputLines |> Day11.countOccupiedSeats
+                else inputLines |> Day11.countOccupiedSeatsOnSight
+
+            return! handleResult int day11result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
