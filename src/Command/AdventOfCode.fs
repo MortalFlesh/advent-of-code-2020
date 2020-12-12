@@ -1018,6 +1018,84 @@ module AdventOfCode =
             |> List.map parseLine
             |> run []
 
+    [<RequireQualifiedAccess>]
+    module Day12 =
+        type private Direction =
+            | North
+            | East
+            | South
+            | West
+
+        type private ManhattanDistance = {
+            EastWest: int
+            NorthSouth: int
+        }
+
+        type private Turn =
+            | Left
+            | Right
+
+        let private turn = function
+            | Left, North -> West
+            | Left, East -> North
+            | Left, South -> East
+            | Left, West -> South
+            | Right, North -> East
+            | Right, East -> South
+            | Right, South -> West
+            | Right, West -> North
+
+        let private turnBoat degrees turnDirection current =
+            [1 .. int degrees / 90]
+            |> List.fold (fun acc _ -> turn (turnDirection, acc)) current
+
+        let private format = function
+            | North -> "N"
+            | East -> "E"
+            | South -> "S"
+            | West -> "W"
+
+        let countManhattanDistance input =
+            let rec sail (current, acc) input =
+                (* printfn "Facing: %A | %s: %A | %s: %A"
+                    current
+                    (if acc.EastWest >= 0 then "E" else "W")
+                    (abs acc.EastWest)
+                    (if acc.NorthSouth >= 0 then "N" else "S")
+                    (abs acc.NorthSouth)
+                printf " * %A -> " (input |> List.tryHead) *)
+
+                match input with
+                | [] -> (abs acc.EastWest) + (abs acc.NorthSouth)
+
+                | Regex @"N(\d+)" [ number ] :: rest ->
+                    rest |> sail (current, { acc with NorthSouth = acc.NorthSouth + (int number) })
+
+                | Regex @"E(\d+)" [ number ] :: rest ->
+                    rest |> sail (current, { acc with EastWest = acc.EastWest - (int number) })
+
+                | Regex @"S(\d+)" [ number ] :: rest ->
+                    rest |> sail (current, { acc with NorthSouth = acc.NorthSouth - (int number) })
+
+                | Regex @"W(\d+)" [ number ] :: rest ->
+                    rest |> sail (current, { acc with EastWest = acc.EastWest + (int number) })
+
+                | Regex @"F(\d+)" [ number ] :: rest ->
+                    sprintf "%s%s" (current |> format) number :: rest |> sail (current, acc)
+
+                | Regex @"L(\d+)" [ degrees ] :: rest ->
+                    rest |> sail (current |> turnBoat degrees Left, acc)
+
+                | Regex @"R(\d+)" [ degrees ] :: rest ->
+                    rest |> sail (current |> turnBoat degrees Right, acc)
+
+                | invalid :: _ -> failwithf "Invalid input %A" invalid
+
+            input
+            |> sail (East, { EastWest = 0; NorthSouth = 0 })
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -1140,6 +1218,13 @@ module AdventOfCode =
                 else inputLines |> Day11.countOccupiedSeatsOnSight
 
             return! handleResult int day11result
+        | 12 ->
+            let day12result =
+                if firstPuzzle
+                then inputLines |> Day12.countManhattanDistance
+                else inputLines |> Day12.second
+
+            return! handleResult int day12result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
