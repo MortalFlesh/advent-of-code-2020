@@ -1096,6 +1096,35 @@ module AdventOfCode =
 
         let second input = 0
 
+    [<RequireQualifiedAccess>]
+    module Day13 =
+        let first (input: string list) =
+            let arrivedAt = int input.[0]
+            let buses =
+                input.[1].Split ','
+                |> Seq.filter ((<>) "x")
+                |> Seq.map int
+                |> List.ofSeq
+
+            // printfn "time | %s" (buses |> List.map (sprintf "bus %d") |> String.concat " | ")
+
+            Seq.initInfinite ((+) arrivedAt)
+            |> Seq.pick (fun time ->
+                (* [
+                    yield string time
+
+                    yield! buses |> List.map ((fun bus -> if time % bus = 0 then "D" else ".") >> string)
+                ]
+                |> String.concat "   |   "
+                |> printfn "%s" *)
+
+                buses
+                |> List.tryFind (fun bus -> time % bus = 0)
+                |> Option.map (fun bus -> (time - arrivedAt) * bus)
+            )
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -1225,6 +1254,13 @@ module AdventOfCode =
                 else inputLines |> Day12.second
 
             return! handleResult int day12result
+        | 13 ->
+            let day13result =
+                if firstPuzzle
+                then inputLines |> Day13.first
+                else inputLines |> Day13.second
+
+            return! handleResult int day13result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
