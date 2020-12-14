@@ -1125,6 +1125,70 @@ module AdventOfCode =
 
         let second input = 0
 
+    [<RequireQualifiedAccess>]
+    module Day14 =
+        open System
+
+        let rec private decToBin = function
+            | 0 | 1 as i -> string i
+            | i -> (decToBin (i / 2)) + (string (i % 2))
+
+        let private binToDec i = Convert.ToInt64(i, 2)
+
+        type private Write = {
+            Index: int
+            Binary: string
+        }
+
+        type private Input =
+            | Mask of string
+            | Write of Write
+
+        let private parseLine = function
+            | null | "" -> None
+            | Regex @"mask = (.+)" [ mask ] -> Some (Mask mask)
+            | Regex @"mem\[(\d+)\] = (\d+)" [ index; value ] ->
+                Some (Write {
+                    Index = int index
+                    Binary = int value |> decToBin
+                })
+            | invalid -> failwithf "Invalid line %A" invalid
+
+        let private write (mask: string) (value: Write) (map: Map<int, int64>) =
+            let valueWithLeading0 = (String.replicate (mask.Length - value.Binary.Length) "0") + value.Binary
+
+            let result =
+                mask
+                |> Seq.mapi (fun i -> function
+                    | 'X' -> valueWithLeading0 |> Seq.tryItem i |> Option.defaultValue '0' |> string
+                    | value -> string value
+                )
+                |> String.concat ""
+
+            // printfn "Value:  %s%s" (String.replicate (mask.Length - valueWithLeading0.Length) "0") valueWithLeading0
+            // printfn "Mask:   %s" mask
+            // printfn "Result: %s%s" (String.replicate (mask.Length - result.Length) "0") result
+
+            let result =
+                result
+                |> binToDec
+                // tee (printfn "mem[%A] = %A" value.Index)
+
+            map |> Map.add value.Index result
+
+        let sumMemoryValues (input: string list) =
+            let rec run (mask, acc: Map<int, int64>) = function
+                | [] -> acc |> Map.toList |> List.sumBy snd
+                | line :: rest ->
+                    match line |> parseLine with
+                    | Some (Mask mask) -> rest |> run (mask, acc)
+                    | Some (Write value) -> rest |> run (mask, acc |> write mask value)
+                    | _ -> rest |> run (mask, acc)
+
+            input |> run ("", Map.empty)
+
+        let second input = 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -1261,6 +1325,13 @@ module AdventOfCode =
                 else inputLines |> Day13.second
 
             return! handleResult int day13result
+        | 14 ->
+            let day14result =
+                if firstPuzzle
+                then inputLines |> Day14.sumMemoryValues
+                else inputLines |> Day14.second |> int64
+
+            return! handleResult int64 day14result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
