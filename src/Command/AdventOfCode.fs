@@ -1189,6 +1189,72 @@ module AdventOfCode =
 
         let second input = 0
 
+    [<RequireQualifiedAccess>]
+    module Day16 =
+        let sumInvalidValues input =
+            let rules, _mySeat, nearbyTickets =
+                match input |> String.concat "\n" |> String.split "\n\n" with
+                | [ rules; mySeat; nearbyTickets ] ->
+                    let rules =
+                        rules
+                        |> String.split "\n"
+                        |> List.choose (function
+                            | Regex @"^\w+: (\d+)-(\d+) or (\d+)-(\d+)" [ aMin; aMax; bMin; bMax ] ->
+                                Some ([ (int aMin) .. (int aMax) ] @ [ (int bMin) .. (int bMax) ])
+                            | _ -> None
+                        )
+                        |> List.concat
+                        |> Set.ofList
+
+                    let nearbyTickets =
+                        (nearbyTickets |> String.split "\n").[1..]
+                        |> List.map (String.split "," >> List.map int >> Set.ofList)
+
+                    rules, mySeat, nearbyTickets
+                | _ -> failwithf "Invalid input"
+
+            nearbyTickets
+            |> List.sumBy (fun nearby ->
+                rules |> Set.difference nearby |> Set.toList |> List.sum
+            )
+
+        let multiplyDepartureValues input =
+            // todo - this is an incomplete solution, the first thing to do, is determine, which filed is which
+
+            (* let rules, _mySeat, nearbyTickets =
+                match input |> String.concat "\n" |> String.split "\n\n" with
+                | [ rules; mySeat; nearbyTickets ] ->
+
+                    let departureRules, rules =
+                        let rec collect (departureRules, allRules) = function
+                            | [] -> departureRules |> List.map Set.ofList, allRules |> List.concat |> Set.ofList
+
+                            | Regex @"^(\w+): (\d+)-(\d+) or (\d+)-(\d+)" [ rule; aMin; aMax; bMin; bMax ] :: rules ->
+                                let range = [ (int aMin) .. (int aMax) ] @ [ (int bMin) .. (int bMax) ]
+
+                                let departureRules =
+                                    if rule.StartsWith "departure" then range :: departureRules
+                                    else departureRules
+
+                                rules |> collect (departureRules, range :: allRules)
+
+                            | invalid -> failwithf "Invalid rule %A" invalid
+
+                        rules |> String.split "\n" |> collect ([], [])
+
+                    let nearbyTickets =
+                        (nearbyTickets |> String.split "\n").[1..]
+                        |> List.filter (String.split "," >> List.map int >> Set.ofList)
+
+                    rules, mySeat, nearbyTickets
+                | _ -> failwithf "Invalid input"
+
+            nearbyTickets
+            |> List.sumBy (fun nearby ->
+                rules |> Set.difference nearby |> Set.toList |> List.sum
+            ) *)
+            0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -1332,6 +1398,13 @@ module AdventOfCode =
                 else inputLines |> Day14.second |> int64
 
             return! handleResult int64 day14result
+        | 16 ->
+            let day16result =
+                if firstPuzzle
+                then inputLines |> Day16.sumInvalidValues
+                else inputLines |> Day16.multiplyDepartureValues
+
+            return! handleResult int day16result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
