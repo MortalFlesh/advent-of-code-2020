@@ -66,6 +66,9 @@ module String =
     let replace (find: string) (replacement: string) (string: string) =
         string.Replace(find, replacement)
 
+    let replaceFirst (find: string) (replacement: string) (string: string) =
+        Text.RegularExpressions.Regex(Text.RegularExpressions.Regex.Escape(find)).Replace(string, replacement, 1)
+
     let replaceAll (replace: string list) replacement (value: string) =
         replace
         |> List.fold (fun (value: string) toRemove ->
