@@ -1257,10 +1257,10 @@ module AdventOfCode =
 
     [<RequireQualifiedAccess>]
     module Day18 =
-        let private debug = false
+        (* let private debug = false
 
         let private log message = if debug then printf "%s" message
-        let private logn message = if debug then printfn "%s" message
+        let private logn message = if debug then printfn "%s" message *)
 
         let private evaluate (figures: string) =
             let rec eval acc = function
@@ -1269,26 +1269,26 @@ module AdventOfCode =
                 | "*" :: num :: rest -> rest |> eval ((int64 num) * acc)
                 | num :: rest -> rest |> eval ((int64 num) + acc) // first number
 
-            log <| sprintf "{ %s" figures
+            // log <| sprintf "{ %s" figures
             figures.Split ' ' |> Seq.toList |> eval (int64 0)
-            |> tee (sprintf " = %A }" >> log)
+            // |> tee (sprintf " = %A }" >> log)
 
         let rec private parse evaluate = function
             | null | "" -> None
             | Regex @"\(([^\)\(]+?)\)" [ figures ] as line ->
-                log <| sprintf "Line: %s" line
+                // log <| sprintf "Line: %s" line
                 line
                 |> String.replaceFirst
-                    (sprintf "(%s)" figures |> tee (sprintf " | find: %A and replace with " >> log))
-                    (figures |> evaluate |> string |> String.trim 'L' |> tee (sprintf "%A" >> logn))
+                    (sprintf "(%s)" figures (* |> tee (sprintf " | find: %A and replace with " >> log) *))
+                    (figures |> evaluate |> string |> String.trim 'L' (* |> tee (sprintf "%A" >> logn) *))
                 |> parse evaluate
 
             | line ->
-                log <| sprintf "Line: %s" line
+                // log <| sprintf "Line: %s" line
                 Some (
                     line
                     |> evaluate
-                    |> tee (sprintf " = %A\n-------------" >> logn)
+                    // |> tee (sprintf " = %A\n-------------" >> logn)
                 )
 
         let sumResults input =
@@ -1300,21 +1300,21 @@ module AdventOfCode =
             let rec eval = function
                 | null | "" -> failwithf "Empty figures"
                 | Regex @"(\d+) \+ (\d+)" [ a; b ] as line ->
-                    log <| sprintf "{! %s = " line
+                    // log <| sprintf "{! %s = " line
                     line
                     |> String.replaceFirst
                         (sprintf "%s + %s" a b)
                         (int64 a + int64 b |> string |> String.trim 'L')
                     |> eval
-                    |> tee (sprintf "%A !} " >> log)
+                    // |> tee (sprintf "%A !} " >> log)
 
                 | wrong when wrong.Contains "+" -> failwithf "Invalid line %A" wrong
 
                 | line ->
-                    log <| sprintf "{ %s = " line
+                    // log <| sprintf "{ %s = " line
                     line
                     |> evaluate
-                    |> tee (sprintf " %A } " >> log)
+                    // |> tee (sprintf " %A } " >> log)
 
             figures |> eval
 
