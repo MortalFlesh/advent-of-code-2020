@@ -1323,6 +1323,94 @@ module AdventOfCode =
             |> List.choose (parse evaluateWithPrecedence)
             |> List.sum
 
+    [<RequireQualifiedAccess>]
+    module Day20 =
+        type private Tile = {
+            Id: int
+            Sides: Set<string>
+        }
+
+        let private tileId { Id = id } = id
+
+        let private parseTile (input: string) =
+            let lines = input.Split "\n"
+            let tileId = lines.[0].Split ' ' |> Seq.last |> String.trim ':' |> int
+
+            let top = lines.[1]
+            let right =
+                seq {
+                    for i in 1 .. lines.Length - 1 do
+                        lines.[i].[top.Length - 1] |> string
+                }
+                |> String.concat ""
+            let bottom = lines.[lines.Length - 1]
+            let left =
+                seq {
+                    for i in 1 .. lines.Length - 1 do
+                        lines.[i].[0] |> string
+                }
+                |> String.concat ""
+
+            {
+                Id = tileId
+                Sides =
+                    Set.ofList (
+                        [ top; right; bottom; left ]
+                        @ ([ top; right; bottom; left ] |> List.map String.reverse)
+                    )
+            }
+
+        let private tryFindTile currentTile from (tiles: Tile list) =
+            seq {
+                // printfn " - For %A | from %A ..." currentTile.Id from
+
+                for j in from .. tiles.Length - 1 do
+                    let tile = tiles.[j]
+                    // printf " * [%A] %A" j tile.Id
+
+                    let mutualSides = currentTile.Sides |> Set.intersect tile.Sides
+                    if currentTile.Id <> tile.Id && mutualSides |> Set.isEmpty |> not then
+                        // printfn " -> match %A sides!" mutualSides.Count
+                        yield Some (j, tile)
+                    (* else
+                        printfn " -> no match" *)
+            }
+            |> Seq.tryPick id
+
+        let multiplyCourners input =
+            let tiles = input |> String.concat "\n" |> String.split "\n\n" |> List.map parseTile
+
+            let corners =
+                seq {
+                    for i in 0 .. tiles.Length - 1 do
+                        let currentTile = tiles.[i]
+                        // printfn "===============\nTile %A:" currentTile.Id
+
+                        maybe {
+                            let! (firstIdx, firstTile) = tiles |> tryFindTile currentTile 0
+                            let! (secondIdx, secondTile) = tiles |> tryFindTile currentTile (firstIdx + 1)
+
+                            let thirdTile = tiles |> tryFindTile currentTile (secondIdx + 1)
+
+                            if thirdTile.IsSome then
+                                // printfn " -> 3 and more, not a corner ..."
+                                return! None
+
+                            // printfn " -> is corner"
+                            return currentTile
+                        }
+                }
+                |> Seq.choose id
+                |> Seq.toList
+
+            corners |> List.length |> printfn "-----------------------\n * Corners: %A"
+            corners |> List.iter (tileId >> printfn " * Corner: %A")
+
+            corners |> List.map (tileId >> int64) |> List.reduce ( * )
+
+        let second input =
+            int64 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -1478,6 +1566,13 @@ module AdventOfCode =
                 if firstPuzzle
                 then inputLines |> Day18.sumResults
                 else inputLines |> Day18.sumResultsWithPrecedence
+
+            return! handleResult int64 day18result
+        | 20 ->
+            let day18result =
+                if firstPuzzle
+                then inputLines |> Day20.multiplyCourners
+                else inputLines |> Day20.second
 
             return! handleResult int64 day18result
         | day ->

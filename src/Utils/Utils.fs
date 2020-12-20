@@ -75,6 +75,9 @@ module String =
             value.Replace(toRemove, replacement)
         ) value
 
+    let reverse (value: string) =
+        value |> Seq.rev |> Seq.map string |> String.concat ""
+
     let remove toRemove = replaceAll toRemove ""
 
     let append suffix string =
