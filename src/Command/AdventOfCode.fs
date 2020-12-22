@@ -1411,6 +1411,40 @@ module AdventOfCode =
         let second input =
             int64 0
 
+    [<RequireQualifiedAccess>]
+    module Day22 =
+        type Deck = int64 list
+
+        let private parsePlayer lines: Deck =
+            (lines |> String.split "\n").[1..]
+            |> List.map int64
+
+        let rec private game: (Deck * Deck -> int64) = function
+            | [], [] -> failwith "No cards in the game."
+
+            | winner, []
+            | [], winner ->
+                winner
+                |> List.rev
+                |> List.zip [ 1 .. winner.Length ]
+                |> List.sumBy (fun (i, card) -> (int64 i) * card)
+
+            | card1 :: deck1, card2 :: deck2 when card1 = card2 -> failwithf "Card %A = Card %A" card1 card2
+            | card1 :: deck1, card2 :: deck2 when card1 > card2 -> (deck1 @ [ card1; card2 ], deck2) |> game
+            | card1 :: deck1, card2 :: deck2 when card1 < card2 -> (deck1, deck2 @ [ card2; card1 ]) |> game
+            | invalid -> failwithf "Invalid round of %A" invalid
+
+        let countScoreForWinner input =
+            let player1, player2 =
+                match input |> String.concat "\n" |> String.split  "\n\n" |> List.map parsePlayer with
+                | [ player1;  player2 ] -> player1, player2
+                | _ -> failwith "Invalid number of players."
+
+            (player1, player2)
+            |> game
+
+        let second input = int64 0
+
     let args = [
         Argument.required "day" "A number of a day you are running"
         Argument.required "input" "Input data file path"
@@ -1569,12 +1603,19 @@ module AdventOfCode =
 
             return! handleResult int64 day18result
         | 20 ->
-            let day18result =
+            let day20result =
                 if firstPuzzle
                 then inputLines |> Day20.multiplyCourners
                 else inputLines |> Day20.second
 
-            return! handleResult int64 day18result
+            return! handleResult int64 day20result
+        | 22 ->
+            let day22result =
+                if firstPuzzle
+                then inputLines |> Day22.countScoreForWinner
+                else inputLines |> Day22.second
+
+            return! handleResult int64 day22result
         | day ->
             return! Error <| sprintf "Day %A is not ready yet." day
     })
